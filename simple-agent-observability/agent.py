@@ -1,8 +1,9 @@
 """
-Simple Strands Agent with DuckDuckGo and Braintrust Observability.
+Simple Strands Agent with DuckDuckGo, MCP, and Braintrust Observability.
 
 This agent demonstrates:
 - DuckDuckGo web search tool
+- MCP (Model Context Protocol) server integration via Context7
 - Braintrust observability using OpenTelemetry
 - Anthropic Claude Haiku via Strands
 """
@@ -20,6 +21,8 @@ from opentelemetry.sdk.trace import TracerProvider
 from strands import Agent
 from strands.telemetry import StrandsTelemetry
 from strands.tools.decorator import tool
+from strands.tools.mcp import MCPClient
+from mcp.client.streamable_http import streamablehttp_client
 
 
 # Configure logging
@@ -105,12 +108,17 @@ def _setup_observability() -> TracerProvider:
     return tracer_provider
 
 
-def _create_agent() -> Agent:
+def _create_mcp_transport():
+    """Create a streamable HTTP transport for the Context7 MCP server."""
+    return streamablehttp_client("https://mcp.context7.com/mcp")
+
+
+def _create_agent() -> tuple:
     """
-    Create and configure the Strands agent.
+    Create and configure the Strands agent with DuckDuckGo and MCP tools.
 
     Returns:
-        Configured Agent instance
+        Tuple of (Configured Agent instance, MCPClient instance or None)
     """
     logger.info("Creating Strands agent")
 
@@ -123,9 +131,10 @@ def _create_agent() -> Agent:
     os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
 
     # Configure the agent with system prompt
-    system_prompt = """You are a helpful AI assistant with access to DuckDuckGo web search.
+    system_prompt = """You are a helpful AI assistant with access to DuckDuckGo web search and Context7 documentation search via MCP.
 
 Use the DuckDuckGo search tool to find current information, news, and answers to questions.
+Use the Context7 MCP tools (resolve-library-id and get-library-docs) to look up programming documentation.
 Provide clear, accurate, and helpful responses based on the search results.
 Always cite your sources when using search results."""
 
@@ -139,15 +148,31 @@ Always cite your sources when using search results."""
         max_tokens=4096
     )
 
+    # Connect to Context7 MCP server and load tools
+    mcp_client = None
+    mcp_tools = []
+    try:
+        logger.info("Connecting to Context7 MCP server...")
+        mcp_client = MCPClient(_create_mcp_transport)
+        mcp_client.__enter__()
+        mcp_tools = mcp_client.list_tools_sync()
+        logger.info(f"Loaded {len(mcp_tools)} MCP tools from Context7")
+    except Exception as e:
+        logger.warning(f"Could not connect to MCP server: {e}. Continuing without MCP tools.")
+        mcp_client = None
+
+    # Combine DuckDuckGo and MCP tools
+    all_tools = [duckduckgo_search] + mcp_tools
+
     # Create agent - observability is already configured globally via TracerProvider
     agent = Agent(
         system_prompt=system_prompt,
         model=model,
-        tools=[duckduckgo_search]
+        tools=all_tools
     )
 
-    logger.info("Agent created successfully with Braintrust observability")
-    return agent
+    logger.info(f"Agent created with {len(all_tools)} tools (1 DuckDuckGo + {len(mcp_tools)} MCP)")
+    return agent, mcp_client
 
 
 async def _run_agent_async(
@@ -176,49 +201,52 @@ def main() -> None:
     """Main function to run the agent."""
     logger.info("Starting Simple Agent with Observability")
 
-    # Create agent
-    agent = _create_agent()
-
-    # Example queries to test different tools
-    test_queries = [
-        "What is the latest news about AI?",
-        "How do I use async/await in Python?",
-        "What are the best practices for React hooks?"
-    ]
+    # Create agent (with optional MCP client)
+    agent, mcp_client = _create_agent()
 
     print("\n" + "="*80)
     print("Simple Agent with Observability Demo")
     print("="*80 + "\n")
 
     # Run interactive loop
-    print("Ask me anything! I can search the web with DuckDuckGo.")
+    print("Ask me anything! I can search the web with DuckDuckGo")
+    print("and look up programming docs via Context7 MCP.")
     print("Type 'quit' to exit.\n")
 
-    while True:
-        try:
-            user_input = input("You: ").strip()
+    try:
+        while True:
+            try:
+                user_input = input("You: ").strip()
 
-            if user_input.lower() in ["quit", "exit", "q"]:
-                print("\nGoodbye!")
+                if user_input.lower() in ["quit", "exit", "q"]:
+                    print("\nGoodbye!")
+                    break
+
+                if not user_input:
+                    continue
+
+                # Run agent
+                response = asyncio.run(_run_agent_async(agent, user_input))
+
+                print(f"\nAgent: {response}\n")
+
+            except EOFError:
+                print("\n\nGoodbye!")
                 break
-
-            if not user_input:
-                continue
-
-            # Run agent
-            response = asyncio.run(_run_agent_async(agent, user_input))
-
-            print(f"\nAgent: {response}\n")
-
-        except EOFError:
-            print("\n\nGoodbye!")
-            break
-        except KeyboardInterrupt:
-            print("\n\nGoodbye!")
-            break
-        except Exception as e:
-            logger.error(f"Error running agent: {e}")
-            print(f"\nError: {e}\n")
+            except KeyboardInterrupt:
+                print("\n\nGoodbye!")
+                break
+            except Exception as e:
+                logger.error(f"Error running agent: {e}")
+                print(f"\nError: {e}\n")
+    finally:
+        # Clean up MCP client connection
+        if mcp_client is not None:
+            try:
+                mcp_client.__exit__(None, None, None)
+                logger.info("MCP client connection closed")
+            except Exception as e:
+                logger.warning(f"Error closing MCP client: {e}")
 
 
 if __name__ == "__main__":
