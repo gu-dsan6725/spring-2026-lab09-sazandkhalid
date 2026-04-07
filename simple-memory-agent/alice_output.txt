@@ -1,0 +1,36 @@
+=== Alice Session 1 ===
+
+User: Hi, I'm Alice. I'm a software engineer.
+Agent: Is there anything specific you'd like to chat about or get help with today? Whether it's about software engineering, a project you're working on, or something else entirely, I'm here to help!
+
+User: I prefer Python for development.
+Agent: Python is a great choice! It's versatile, has a huge ecosystem of libraries, and is great for everything from web development to data science and automation. Are you working on any Python projects right now, or is there anything specific about Python development you'd like to discuss?
+
+User: What programming languages do I like?
+Agent: Based on what we've discussed, I know that you prefer **Python** for development. That's the programming language preference you've shared with me so far. 
+
+Is there anything else about your programming language preferences you'd like to tell me?
+
+User: I'm working on a FastAPI project.
+Agent: How's the project going? Is there anything specific about it you'd like help with—whether it's architecture, debugging, deployment, or anything else? I'd be happy to discuss or brainstorm with you!
+
+User: What have we discussed so far?
+Agent: Interesting—it looks like my memory search isn't returning results at the moment, but based on our conversation, here's what we've discussed:
+
+1. **You're a software engineer**
+2. **You prefer Python for development**
+3. **You're currently working on a FastAPI project**
+
+These are the key things I've learned about you so far in our conversation. Is there anything else you'd like to tell me or discuss?
+
+
+=== Alice Session 2 (New Session) ===
+
+User: What do you remember about me?
+Agent: I don't have any memories of previous conversations with you yet. This appears to be the start of our conversation together, so I don't have any stored information about you, your preferences, or past interactions.
+
+However, I'm ready to help! As we chat, I can remember important things you share with me - like your preferences, interests, goals, or any other information you'd like me to keep in mind for future conversations. Just let me know what you'd like me to remember, or feel free to tell me about yourself!
+
+User: What project am I working on?
+Agent: I don't have any record of you mentioning a project before. Could you tell me about what you're working on? I'd be happy to help, and I can save that information so I remember it in future conversations.
+
